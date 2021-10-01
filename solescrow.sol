@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.0;
 
 import "./esr-token.sol";
 
 contract Escrow {
   address admin;
   uint256 public totalBalance;
+  ESRTOKEN token;
 
   // this is the ESR erc20 contract address
-  address constant esrAddress = 0x7d573331B48491C6067307Aa1c74348a4766BD10;
+  address constant esrAddress = 0x43CE57725D99b03659558491EdBfF6C1907Eaa71;
 
   struct Transaction {
     address buyer;
@@ -26,12 +27,16 @@ contract Escrow {
 
   constructor() {
     admin = msg.sender;
+    token = ESRTOKEN(esrAddress);
+  }
+  
+  function approve(address _seller, uint256 _amount) external payable returns (bool) {
+      return token.approve(_seller, _amount);
   }
 
   // seller accepts a trade, erc20 tokens
   // get moved to the escrow (this contract)
   function accept(address _tx_id, address _buyer, uint256 _amount) external returns (uint256) {
-    ESRToken token = ESRToken(esrAddress);
     token.transferFrom(msg.sender, address(this), _amount);
     totalBalance += _amount;
     balances[msg.sender][_tx_id].amount = _amount;
@@ -57,7 +62,6 @@ contract Escrow {
     require(balances[msg.sender][_tx_id].locked == false, 'This escrow is still locked');
     require(balances[msg.sender][_tx_id].spent == false, 'Already withdrawn');
 
-    ESRToken token = ESRToken(esrAddress);
     token.transfer(msg.sender, balances[msg.sender][_tx_id].amount);
 
     totalBalance -= balances[msg.sender][_tx_id].amount;
@@ -67,7 +71,6 @@ contract Escrow {
 
   // admin can send funds to buyer if dispute resolution is in buyer's favor
   function resolveToBuyer(address _seller, address _tx_id) onlyAdmin external returns(bool) {
-    ESRToken token = ESRToken(esrAddress);
     token.transfer(balances[_seller][_tx_id].buyer, balances[msg.sender][_tx_id].amount);
 
     balances[_seller][_tx_id].spent = true;
